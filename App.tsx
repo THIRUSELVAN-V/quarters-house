@@ -1,4 +1,3 @@
-
 import AppNavigator from 'navigation/AppNavigator';
 import './global.css';
 import { SafeAreaProvider } from 'react-native-safe-area-context';

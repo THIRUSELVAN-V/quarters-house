@@ -1,6 +1,20 @@
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { auth, db } from '../firebase/config';
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updatePassword,
+  getAuth,
+  signOut as authSignOut,
+} from 'firebase/auth';
+import { initializeApp, getApps } from 'firebase/app';
+import { auth, db, firebaseConfig } from '../firebase/config';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
+
+export interface FamilyMember {
+  name: string;
+  relation: string;
+  occupation: string;
+  idProofUrl?: string; // Base64 or image URL of uploaded ID proof
+}
 
 export interface UserProfile {
   uid: string;
@@ -13,6 +27,8 @@ export interface UserProfile {
   houseNumber?: string;
   gate?: string;
   isApproved?: boolean;
+  familyMembersCount?: number;
+  familyMembers?: FamilyMember[];
 }
 
 export const useAuthentication = () => {
@@ -37,7 +53,7 @@ export const useAuthentication = () => {
   }) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      
+
       const profileData: UserProfile = {
         uid: userCredential.user.uid,
         email,
@@ -58,6 +74,68 @@ export const useAuthentication = () => {
       await setDoc(doc(db, 'users', userCredential.user.uid), profileData);
 
       return { success: true, error: null, user: userCredential };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  };
+
+  const registerResidentByAdmin = async ({
+    email,
+    password,
+    name,
+    mobile,
+    block,
+    houseNumber,
+    familyMembersCount,
+    familyMembers,
+  }: {
+    email: string;
+    password: string;
+    name: string;
+    mobile: string;
+    block: string;
+    houseNumber: string;
+    familyMembersCount: number;
+    familyMembers: FamilyMember[];
+  }) => {
+    try {
+      const secApp =
+        getApps().find((a) => a.name === 'Secondary') || initializeApp(firebaseConfig, 'Secondary');
+      const secAuth = getAuth(secApp);
+
+      const userCredential = await createUserWithEmailAndPassword(secAuth, email, password);
+      const uid = userCredential.user.uid;
+
+      const profileData: UserProfile = {
+        uid,
+        email,
+        role: 'resident',
+        name,
+        mobile,
+        createdAt: new Date(),
+        block,
+        houseNumber,
+        isApproved: true,
+        familyMembersCount,
+        familyMembers,
+      };
+
+      await setDoc(doc(db, 'users', uid), profileData);
+
+      // Sign out from secondary auth immediately
+      await authSignOut(secAuth);
+
+      return { success: true, uid };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  };
+
+  const changePassword = async (passwordText: string) => {
+    try {
+      if (!auth.currentUser) throw new Error('No user currently logged in');
+      await updatePassword(auth.currentUser, passwordText);
+      return { success: true };
     } catch (error: any) {
       return { success: false, error: error.message };
     }
@@ -93,10 +171,10 @@ export const useAuthentication = () => {
       }
       return null;
     } catch (error) {
-      console.error("Error fetching user profile:", error);
+      console.error('Error fetching user profile:', error);
       return null;
     }
   };
 
-  return { register, login, getUserProfile };
+  return { register, registerResidentByAdmin, changePassword, login, getUserProfile };
 };

@@ -141,10 +141,7 @@ export const useDatabase = () => {
 
   const getHousesByBlock = async (blockName: string): Promise<House[]> => {
     try {
-      const q = query(
-        collection(db, 'houses'),
-        where('blockName', '==', blockName)
-      );
+      const q = query(collection(db, 'houses'), where('blockName', '==', blockName));
       const querySnapshot = await getDocs(q);
       const houses: House[] = [];
       querySnapshot.forEach((doc) => {
@@ -152,7 +149,12 @@ export const useDatabase = () => {
       });
 
       // Sort client-side to prevent Firestore composite index requirements
-      houses.sort((a, b) => a.houseNumber.localeCompare(b.houseNumber, undefined, { numeric: true, sensitivity: 'base' }));
+      houses.sort((a, b) =>
+        a.houseNumber.localeCompare(b.houseNumber, undefined, {
+          numeric: true,
+          sensitivity: 'base',
+        })
+      );
 
       return houses;
     } catch (error) {
@@ -225,10 +227,7 @@ export const useDatabase = () => {
 
   const getResidentVisitorRequests = async (residentUid: string): Promise<VisitorRequest[]> => {
     try {
-      const q = query(
-        collection(db, 'visitor_requests'),
-        where('residentUid', '==', residentUid)
-      );
+      const q = query(collection(db, 'visitor_requests'), where('residentUid', '==', residentUid));
       const querySnapshot = await getDocs(q);
       const requests: VisitorRequest[] = [];
       querySnapshot.forEach((doc) => {
@@ -237,8 +236,16 @@ export const useDatabase = () => {
 
       // Sort client-side to prevent Firestore composite index requirements
       requests.sort((a, b) => {
-        const timeA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : (a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt).getTime() || 0);
-        const timeB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : (b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt).getTime() || 0);
+        const timeA = a.createdAt?.seconds
+          ? a.createdAt.seconds * 1000
+          : a.createdAt?.toDate
+            ? a.createdAt.toDate().getTime()
+            : new Date(a.createdAt).getTime() || 0;
+        const timeB = b.createdAt?.seconds
+          ? b.createdAt.seconds * 1000
+          : b.createdAt?.toDate
+            ? b.createdAt.toDate().getTime()
+            : new Date(b.createdAt).getTime() || 0;
         return timeB - timeA;
       });
 
